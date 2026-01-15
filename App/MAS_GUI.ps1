@@ -2,7 +2,7 @@
 .SYNOPSIS
     Win11 Style GUI for Microsoft Activation Scripts (MAS)
 .DESCRIPTION
-    A modern, Fluent-inspired interface for MAS with auto-detection of system status.
+    A modern, Fluent-inspired interface for MAS with auto-detection of system status and dynamic theming.
 #>
 
 # --- Self-Elevation ---
@@ -21,7 +21,7 @@ Add-Type -AssemblyName System.Drawing
 # --- Helper: Get System Info ---
 function Get-SystemInfo {
     try {
-        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stops
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
         $comp = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
         
         $edition = $os.Caption -replace "Microsoft ", ""
@@ -62,16 +62,39 @@ function Get-SystemInfo {
 
 $sysInfo = Get-SystemInfo
 
+# --- Theme Definitions ---
+$DarkTheme = @{
+    "AppBackground"  = "#202020"
+    "NavBackground"  = "#191919"
+    "CardBackground" = "#272727"
+    "CardBorder"     = "#353535"
+    "CardHover"      = "#323232"
+    "TextPrimary"    = "#FFFFFF"
+    "TextSecondary"  = "#A0A0A0"
+    "AccentColor"    = "#60CDFF"
+}
+
+$LightTheme = @{
+    "AppBackground"  = "#F3F3F3"
+    "NavBackground"  = "#EBEBEB"
+    "CardBackground" = "#FFFFFF"
+    "CardBorder"     = "#E0E0E0"
+    "CardHover"      = "#F9F9F9"
+    "TextPrimary"    = "#000000"
+    "TextSecondary"  = "#666666"
+    "AccentColor"    = "#0078D4"
+}
+
 # --- XAML ---
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Microsoft Activation Scripts" Height="650" Width="1000"
+        Title="Microsoft Activation Scripts" Height="700" Width="1050"
         WindowStartupLocation="CenterScreen" ResizeMode="CanResize"
-        Background="#202020" Foreground="#FFFFFF" FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif">
+        Background="{DynamicResource AppBackground}" Foreground="{DynamicResource TextPrimary}" FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif">
     
     <Window.Resources>
-        <!-- Win11 Palette -->
+        <!-- Win11 Palette (Placeholders, will be overwritten by PS) -->
         <SolidColorBrush x:Key="AppBackground" Color="#202020"/>
         <SolidColorBrush x:Key="NavBackground" Color="#191919"/>
         <SolidColorBrush x:Key="CardBackground" Color="#272727"/>
@@ -83,9 +106,9 @@ $sysInfo = Get-SystemInfo
         
         <!-- Win11 Button Style -->
         <Style TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Padding" Value="12,8"/>
@@ -98,11 +121,10 @@ $sysInfo = Get-SystemInfo
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource CardHover}"/>
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource CardHover}"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#303030"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#505050"/>
+                                <Setter TargetName="border" Property="Opacity" Value="0.8"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -113,7 +135,7 @@ $sysInfo = Get-SystemInfo
         <!-- Navigation RadioButton Style -->
         <Style x:Key="NavButtonStyle" TargetType="RadioButton">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#D0D0D0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="Margin" Value="5,2"/>
             <Setter Property="Padding" Value="16,10"/>
@@ -127,18 +149,18 @@ $sysInfo = Get-SystemInfo
                                     <ColumnDefinition Width="4"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Rectangle x:Name="indicator" Grid.Column="0" Fill="{StaticResource AccentColor}" Height="16" RadiusX="2" RadiusY="2" Visibility="Collapsed" Margin="0,0,0,0"/>
+                                <Rectangle x:Name="indicator" Grid.Column="0" Fill="{DynamicResource AccentColor}" Height="16" RadiusX="2" RadiusY="2" Visibility="Collapsed" Margin="0,0,0,0"/>
                                 <ContentPresenter Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0"/>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#2D2D2D"/>
-                                <Setter Property="Foreground" Value="White"/>
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource CardHover}"/> <!-- Use CardHover for nav hover -->
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#333333"/>
-                                <Setter Property="Foreground" Value="White"/>
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource CardHover}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
                                 <Setter TargetName="indicator" Property="Visibility" Value="Visible"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -149,41 +171,41 @@ $sysInfo = Get-SystemInfo
 
         <!-- Info Card Style -->
         <Style x:Key="InfoCard" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="24"/>
             <Setter Property="Margin" Value="0,0,0,15"/>
             <Setter Property="Effect">
                 <Setter.Value>
-                    <DropShadowEffect BlurRadius="10" ShadowDepth="2" Direction="270" Color="Black" Opacity="0.2"/>
+                    <DropShadowEffect BlurRadius="10" ShadowDepth="2" Direction="270" Color="Black" Opacity="0.1"/>
                 </Setter.Value>
             </Setter>
         </Style>
 
         <!-- Action Card Style -->
         <Style x:Key="ActionCard" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource CardBackground}"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
             <Setter Property="Height" Value="Auto"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
             <Setter Property="Margin" Value="0,0,0,15"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="8" Padding="24">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="8" Padding="24">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <ContentPresenter Grid.Column="0" HorizontalAlignment="Left"/>
-                                <TextBlock Grid.Column="1" Text="&#xE76C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" Foreground="{StaticResource AccentColor}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="&#xE76C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
                          <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource CardHover}"/>
+                                <Setter TargetName="border" Property="Background" Value="{DynamicResource CardHover}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -193,20 +215,23 @@ $sysInfo = Get-SystemInfo
 
     </Window.Resources>
 
-    <Grid Background="{StaticResource NavBackground}">
+    <Grid Background="{DynamicResource NavBackground}">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="250"/>
+            <ColumnDefinition Width="260"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
         <!-- Sidebar -->
         <StackPanel Grid.Column="0" Margin="10,20,10,20">
             <!-- App Title -->
-            <StackPanel Orientation="Horizontal" Margin="15,0,0,30">
-                <Border Width="24" Height="24" CornerRadius="12" Background="{StaticResource AccentColor}" Margin="0,0,10,0">
-                    <TextBlock Text="M" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" Foreground="Black"/>
+            <StackPanel Orientation="Horizontal" Margin="20,0,0,30">
+                <Border Width="32" Height="32" CornerRadius="8" Background="{DynamicResource AccentColor}" Margin="0,0,12,0">
+                     <TextBlock Text="&#xE770;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold"/>
                 </Border>
-                <TextBlock Text="MAS" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="MAS" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}"/>
+                    <TextBlock Text="Activator" FontSize="12" Foreground="{DynamicResource TextSecondary}"/>
+                </StackPanel>
             </StackPanel>
 
             <!-- Nav Items -->
@@ -214,27 +239,31 @@ $sysInfo = Get-SystemInfo
             <RadioButton x:Name="navActivators" Content="Activators" Style="{StaticResource NavButtonStyle}"/>
             <RadioButton x:Name="navExtras" Content="Troubleshoot &amp; Extras" Style="{StaticResource NavButtonStyle}"/>
             
+            <!-- Theme Toggle in Sidebar Bottom -->
+            <Button x:Name="btnToggleTheme" Content="Switch to Light Theme" Margin="20,50,20,0" FontSize="12" Foreground="{DynamicResource TextSecondary}" Background="Transparent" BorderThickness="0" HorizontalAlignment="Left"/>
+
         </StackPanel>
 
         <!-- Content Area -->
-        <Border Grid.Column="1" Background="{StaticResource AppBackground}" CornerRadius="10,0,0,0" Padding="40,30">
+        <Border Grid.Column="1" Background="{DynamicResource AppBackground}" CornerRadius="8,0,0,0" Padding="40,30" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1,1,0,0">
             <Grid>
                 <!-- Home View -->
                 <StackPanel x:Name="viewHome" Visibility="Visible">
-                    <TextBlock Text="System Overview" FontSize="26" FontWeight="SemiBold" Margin="0,0,0,20"/>
+                    <TextBlock Text="System Overview" FontSize="26" FontWeight="SemiBold" Margin="0,0,0,20" Foreground="{DynamicResource TextPrimary}"/>
                     
                     <Border Style="{StaticResource InfoCard}">
                         <StackPanel>
-                            <TextBlock Text="Windows Information" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentColor}" Margin="0,0,0,10"/>
+                            <TextBlock Text="Windows Information" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
                             <Grid Margin="0,5">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="&#xE7F8;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="24" VerticalAlignment="Center" Margin="0,0,15,0" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBlock Grid.Column="0" Text="&#xE7F8;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="32" VerticalAlignment="Center" Margin="0,0,20,0" Foreground="{DynamicResource TextSecondary}"/>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="$($sysInfo.Edition)" FontSize="18" FontWeight="SemiBold"/>
-                                    <TextBlock Text="$($sysInfo.Version)" FontSize="14" Foreground="{StaticResource TextSecondary}"/>
+                                    <TextBlock Text="$($sysInfo.Edition)" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="$($sysInfo.Version)" FontSize="14" Foreground="{DynamicResource TextSecondary}"/>
+                                    <TextBlock Text="$($sysInfo.PCName)" FontSize="12" Foreground="{DynamicResource TextSecondary}" Opacity="0.7"/>
                                 </StackPanel>
                             </Grid>
                         </StackPanel>
@@ -242,80 +271,92 @@ $sysInfo = Get-SystemInfo
 
                      <Border Style="{StaticResource InfoCard}">
                         <StackPanel>
-                            <TextBlock Text="Activation Status" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource AccentColor}" Margin="0,0,0,10"/>
+                            <TextBlock Text="Activation Status" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
                             <Grid Margin="0,5">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="&#xE775;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="24" VerticalAlignment="Center" Margin="0,0,15,0" Foreground="{StaticResource TextSecondary}"/>
+                                <TextBlock Grid.Column="0" Text="&#xE775;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="32" VerticalAlignment="Center" Margin="0,0,20,0" Foreground="{DynamicResource TextSecondary}"/>
                                 <StackPanel Grid.Column="1">
-                                    <TextBlock Text="$($sysInfo.Status)" FontSize="18" FontWeight="SemiBold"/>
-                                    <TextBlock Text="This information is detected automatically." FontSize="14" Foreground="#666"/>
+                                    <TextBlock Text="$($sysInfo.Status)" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                                    <TextBlock Text="Automatic system detection" FontSize="14" Foreground="{DynamicResource TextSecondary}"/>
                                 </StackPanel>
                             </Grid>
                         </StackPanel>
                     </Border>
 
-                    <TextBlock Text="Quick Actions" FontSize="16" FontWeight="SemiBold" Margin="0,20,0,10"/>
+                    <TextBlock Text="Recommended Action" FontSize="16" FontWeight="SemiBold" Margin="0,20,0,10" Foreground="{DynamicResource TextPrimary}"/>
                     <Button x:Name="btnHomeHWID" Style="{StaticResource ActionCard}" Margin="0,5">
                         <StackPanel>
-                            <TextBlock Text="Activate Windows" FontSize="16" FontWeight="SemiBold"/>
-                            <TextBlock Text="Use HWID method (Recommended)" FontSize="13" Foreground="{StaticResource TextSecondary}"/>
+                            <TextBlock Text="Activate Windows" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="Uses the 'HWID' method to generate a permanent digital license." FontSize="14" Foreground="{DynamicResource TextSecondary}" Margin="0,2,0,0"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
 
                 <!-- Activators View -->
                 <StackPanel x:Name="viewActivators" Visibility="Collapsed">
-                    <TextBlock Text="Activation Methods" FontSize="26" FontWeight="SemiBold" Margin="0,0,0,20"/>
-                    <ScrollViewer VerticalScrollBarVisibility="Hidden">
+                    <TextBlock Text="Activation Methods" FontSize="26" FontWeight="SemiBold" Margin="0,0,0,20" Foreground="{DynamicResource TextPrimary}"/>
+                    
+                    <TextBlock Text="Windows 10 / 11" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" Margin="0,10,0,5" Opacity="0.8"/>
+                    <Button x:Name="btnHWID" Style="{StaticResource ActionCard}" Margin="0,0,0,15">
                         <StackPanel>
-                             <!-- HWID -->
-                             <TextBlock Text="Windows 10 / 11" FontSize="14" Foreground="{StaticResource TextSecondary}" Margin="0,10,0,5"/>
-                             <Button x:Name="btnHWID" Style="{StaticResource ActionCard}" Margin="0,0,0,15">
-                                <StackPanel>
-                                    <TextBlock Text="HWID Activation" FontSize="16" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Permanent digital license. Does not require renewal." FontSize="13" Foreground="{StaticResource TextSecondary}"/>
-                                </StackPanel>
-                            </Button>
-
-                            <!-- Ohook -->
-                            <TextBlock Text="Office" FontSize="14" Foreground="{StaticResource TextSecondary}" Margin="0,10,0,5"/>
-                             <Button x:Name="btnOhook" Style="{StaticResource ActionCard}" Margin="0,0,0,15">
-                                <StackPanel>
-                                    <TextBlock Text="Ohook Activation" FontSize="16" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Permanent Office activation (2013-2024, 365)." FontSize="13" Foreground="{StaticResource TextSecondary}"/>
-                                </StackPanel>
-                            </Button>
-
-                            <!-- KMS -->
-                             <TextBlock Text="Volume / Enterprise" FontSize="14" Foreground="{StaticResource TextSecondary}" Margin="0,10,0,5"/>
-                             <Button x:Name="btnKMS" Style="{StaticResource ActionCard}" Margin="0,0,0,15">
-                                <StackPanel>
-                                    <TextBlock Text="Online KMS38" FontSize="16" FontWeight="SemiBold"/>
-                                    <TextBlock Text="Activates until 2038 or 180-days (Server/Enterprise)." FontSize="13" Foreground="{StaticResource TextSecondary}"/>
-                                </StackPanel>
-                            </Button>
+                            <TextBlock Text="HWID Activation" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="Digital License. Permanent. Best for personal PCs." FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
                         </StackPanel>
-                    </ScrollViewer>
+                    </Button>
+
+                    <TextBlock Text="Microsoft Office" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" Margin="0,10,0,5" Opacity="0.8"/>
+                        <Button x:Name="btnOhook" Style="{StaticResource ActionCard}" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Ohook Activation" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="Permanent activation for Office 2013-2024 &amp; 365." FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+                    </Button>
+
+                    <TextBlock Text="Enterprise / Server" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondary}" Margin="0,10,0,5" Opacity="0.8"/>
+                        <Button x:Name="btnKMS" Style="{StaticResource ActionCard}" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Online KMS38" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock Text="Activate until 2038 or 180-days (KMS). Good for Servers." FontSize="13" Foreground="{DynamicResource TextSecondary}"/>
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <!-- Extras View -->
                 <StackPanel x:Name="viewExtras" Visibility="Collapsed">
-                    <TextBlock Text="Extras" FontSize="26" FontWeight="SemiBold" Margin="0,0,0,20"/>
+                    <TextBlock Text="Extras" FontSize="26" FontWeight="SemiBold" Margin="0,0,0,20" Foreground="{DynamicResource TextPrimary}"/>
                     
-                    <WrapPanel>
-                        <Button x:Name="btnChangeWin" Content="Change Windows Edition" Width="200" Margin="0,0,10,10"/>
-                        <Button x:Name="btnChangeOffice" Content="Change Office Edition" Width="200" Margin="0,0,10,10"/>
-                        <Button x:Name="btnCheckStatus" Content="Check Activation Status" Width="200" Margin="0,0,10,10"/>
-                        <Button x:Name="btnTroubleshoot" Content="Troubleshoot" Width="200" Margin="0,0,10,10"/>
-                        <Button x:Name="btnOEM" Content="Extract OEM Folder" Width="200" Margin="0,0,10,10"/>
-                    </WrapPanel>
+                    <Border Style="{StaticResource InfoCard}">
+                        <StackPanel>
+                           <TextBlock Text="Troubleshooting" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,15"/>
+                           <WrapPanel>
+                                <Button x:Name="btnTroubleshoot" Content="Run Troubleshooter" Width="200" Margin="0,0,10,10"/>
+                                <Button x:Name="btnCheckStatus" Content="Check Activation Status" Width="200" Margin="0,0,10,10"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
                     
-                    <TextBlock Text="Logs &amp; Info" FontSize="16" FontWeight="SemiBold" Margin="0,20,0,10"/>
-                    <Border Background="#252525" Padding="15" CornerRadius="4">
-                        <TextBlock Text="This GUI wraps the official MAS scripts. When you click an action, a terminal window will open to perform the operation safely and transparently." TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}"/>
+                    <Border Style="{StaticResource InfoCard}">
+                        <StackPanel>
+                           <TextBlock Text="Edition Management" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,15"/>
+                           <WrapPanel>
+                                <Button x:Name="btnChangeWin" Content="Change Windows Edition" Width="200" Margin="0,0,10,10"/>
+                                <Button x:Name="btnChangeOffice" Content="Change Office Edition" Width="200" Margin="0,0,10,10"/>
+                                <Button x:Name="btnOEM" Content="Extract OEM Folder" Width="200" Margin="0,0,10,10"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+                    
+                    <Border Background="{DynamicResource CardBackground}" Padding="15" CornerRadius="4" Margin="0,20,0,0" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
+                        <StackPanel>
+                             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <TextBlock Text="&#xE946;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Text="How it works" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}"/>
+                             </StackPanel>
+                             <TextBlock Text="This GUI acts as a launcher for the official MAS scripts. When you select an option, it will open a secure terminal window to perform the activation processes transparently. No hidden background tasks." TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" FontSize="13" LineHeight="20"/>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
 
@@ -334,10 +375,39 @@ try {
     Exit
 }
 
+# --- Apply Theme Logic ---
+$isDarkTheme = $true
+
+function Apply-Theme {
+    param($Theme)
+    foreach ($key in $Theme.Keys) {
+        $color = [System.Windows.Media.ColorConverter]::ConvertFromString($Theme[$key])
+        $brush = New-Object System.Windows.Media.SolidColorBrush($color)
+        if ($window.Resources.Contains($key)) {
+            $window.Resources[$key].Color = $color
+        }
+    }
+}
+
+function Toggle-Theme {
+    $global:isDarkTheme = -not $global:isDarkTheme
+    if ($global:isDarkTheme) {
+        Apply-Theme $DarkTheme
+        $btnToggleTheme.Content = "Switch to Light Theme"
+    } else {
+        Apply-Theme $LightTheme
+        $btnToggleTheme.Content = "Switch to Dark Theme"
+    }
+}
+
+# Apply Initial Theme
+Apply-Theme $DarkTheme
+
 # --- Find Controls ---
 $navHome = $window.FindName("navHome")
 $navActivators = $window.FindName("navActivators")
 $navExtras = $window.FindName("navExtras")
+$btnToggleTheme = $window.FindName("btnToggleTheme")
 
 $viewHome = $window.FindName("viewHome")
 $viewActivators = $window.FindName("viewActivators")
@@ -354,7 +424,9 @@ $btnCheckStatus = $window.FindName("btnCheckStatus")
 $btnTroubleshoot = $window.FindName("btnTroubleshoot")
 $btnOEM = $window.FindName("btnOEM")
 
-# --- Logic: Navigation ---
+# --- Events ---
+$btnToggleTheme.Add_Click({ Toggle-Theme })
+
 function Switch-View {
     param($view)
     $viewHome.Visibility = "Collapsed"
