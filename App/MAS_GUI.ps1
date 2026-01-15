@@ -21,18 +21,33 @@ Add-Type -AssemblyName System.Drawing
 # --- Helper: Get System Info ---
 function Get-SystemInfo {
     try {
-        $os = Get-CimInstance Win32_OperatingSystem
-        $comp = Get-CimInstance Win32_ComputerSystem
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stops
+        $comp = Get-CimInstance Win32_ComputerSystem -ErrorAction Stop
         
         $edition = $os.Caption -replace "Microsoft ", ""
         $version = $os.Version
         $build = $os.BuildNumber
         
         # Simple Activation Check (Partial)
-        # 1=Licensed
-        $license = Get-CimInstance SoftwareLicensingProduct | Where-Object { $_.PartialProductKey -and $_.Name -like "Windows*" } | Select-Object -First 1
-        $status = if ($license.LicenseStatus -eq 1) { "Permanently Activated" } else { "Not Activated / check details" }
-        if ($license.LicenseStatus -eq 1 -and $license.GracePeriodRemaining -gt 0) { $status = "Volume/KMS Activated" }
+        try {
+            # 1=Licensed
+            $license = Get-CimInstance SoftwareLicensingProduct -ErrorAction SilentlyContinue | Where-Object { $_.PartialProductKey -and $_.Name -like "Windows*" } | Select-Object -First 1
+            $status = "Unknown / Check manually"
+
+            if ($null -ne $license) {
+                if ($license.LicenseStatus -eq 1) { 
+                    $status = "Permanently Activated"
+                    if ($license.GracePeriodRemaining -gt 0 -and $license.GracePeriodRemaining -lt 40000) { 
+                       # KMS usually has grace period in minutes ~ 259200 (180 days)
+                       $status = "Volume/KMS Activated" 
+                    }
+                } else { 
+                    $status = "Not Activated" 
+                }
+            }
+        } catch {
+            $status = "Detection Failed"
+        }
 
         return @{
             Edition = $edition
@@ -41,7 +56,7 @@ function Get-SystemInfo {
             PCName  = $comp.Name
         }
     } catch {
-        return @{ Edition = "Unknown"; Version = ""; Status = "Unknown"; PCName = "Unknown" }
+        return @{ Edition = "Unknown"; Version = "Unknown"; Status = "Unknown"; PCName = "Unknown" }
     }
 }
 
@@ -51,7 +66,7 @@ $sysInfo = Get-SystemInfo
 [xml]$xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Microsoft Activation Scripts" Height="600" Width="950"
+        Title="Microsoft Activation Scripts" Height="650" Width="1000"
         WindowStartupLocation="CenterScreen" ResizeMode="CanResize"
         Background="#202020" Foreground="#FFFFFF" FontFamily="Segoe UI Variable Display, Segoe UI, sans-serif">
     
@@ -96,28 +111,24 @@ $sysInfo = Get-SystemInfo
         </Style>
 
         <!-- Navigation RadioButton Style -->
-        <!-- We use RadioButtons for tabs to simulate NavigationView properly -->
         <Style x:Key="NavButtonStyle" TargetType="RadioButton">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#D0D0D0"/>
-            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontSize" Value="15"/>
             <Setter Property="Margin" Value="5,2"/>
-            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="Padding" Value="16,10"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="6">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="4"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                
-                                <!-- Active Indicator -->
                                 <Rectangle x:Name="indicator" Grid.Column="0" Fill="{StaticResource AccentColor}" Height="16" RadiusX="2" RadiusY="2" Visibility="Collapsed" Margin="0,0,0,0"/>
-                                
-                                <ContentPresenter Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                <ContentPresenter Grid.Column="1" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="12,0,0,0"/>
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -126,7 +137,7 @@ $sysInfo = Get-SystemInfo
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="#303030"/>
+                                <Setter TargetName="border" Property="Background" Value="#333333"/>
                                 <Setter Property="Foreground" Value="White"/>
                                 <Setter TargetName="indicator" Property="Visibility" Value="Visible"/>
                             </Trigger>
@@ -142,8 +153,13 @@ $sysInfo = Get-SystemInfo
             <Setter Property="BorderBrush" Value="{StaticResource CardBorder}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
-            <Setter Property="Padding" Value="20"/>
+            <Setter Property="Padding" Value="24"/>
             <Setter Property="Margin" Value="0,0,0,15"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="10" ShadowDepth="2" Direction="270" Color="Black" Opacity="0.2"/>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Action Card Style -->
@@ -151,17 +167,18 @@ $sysInfo = Get-SystemInfo
             <Setter Property="Background" Value="{StaticResource CardBackground}"/>
             <Setter Property="Height" Value="Auto"/>
             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Margin" Value="0,0,0,15"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="8" Padding="20">
+                        <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="8" Padding="24">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <ContentPresenter Grid.Column="0" HorizontalAlignment="Left"/>
-                                <TextBlock Grid.Column="1" Text="&#xE76C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="16" Foreground="{StaticResource AccentColor}" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="&#xE76C;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets" FontSize="18" Foreground="{StaticResource AccentColor}" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
                          <ControlTemplate.Triggers>
