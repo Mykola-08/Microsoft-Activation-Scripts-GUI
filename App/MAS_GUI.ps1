@@ -31,7 +31,7 @@ function Get-SystemInfo {
         # Simple Activation Check (Partial)
         try {
             # 1=Licensed
-            $license = Get-CimInstance SoftwareLicensingProduct -ErrorAction SilentlyContinue | Where-Object { $_.PartialProductKey -and $_.Name -like "Windows*" } | Select-Object -First 1
+            $license = Get-CimInstance SoftwareLicensingProduct -Filter "PartialProductKey IS NOT NULL AND Name LIKE 'Windows%'" -ErrorAction SilentlyContinue | Select-Object -First 1
             $status = "Unknown / Check manually"
 
             if ($null -ne $license) {
